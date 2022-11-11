@@ -1,6 +1,14 @@
-from agents.AbstractAgent import AbstractAgent
+from agents.abstractAgent import AbstractAgent
 from environments.pytux import PyTux
 
+'''
+IDEAS
+-----
+
+- Gather dataset from multiple levels of AI
+- Gather dataset from baseline with noise
+- Train model and then generate augmented dataset and train more
+'''
 
 class TransformerController(AbstractAgent):
     def train(self):

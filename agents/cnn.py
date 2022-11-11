@@ -2,18 +2,7 @@ import torch
 import torch.nn.functional as F
 
 
-def spatial_argmax(logit):
-    """
-    Compute the soft-argmax of a heatmap
-    :param logit: A tensor of size BS x H x W
-    :return: A tensor of size BS x 2 the soft-argmax in normalized coordinates (-1 .. 1)
-    """
-    weights = F.softmax(logit.view(logit.size(0), -1), dim=-1).view_as(logit)
-    return torch.stack(((weights.sum(1) * torch.linspace(-1, 1, logit.size(2)).to(logit.device)[None]).sum(1),
-                        (weights.sum(2) * torch.linspace(-1, 1, logit.size(1)).to(logit.device)[None]).sum(1)), 1)
-
-
-class Planner(torch.nn.Module):
+class KartCNN(torch.nn.Module):
     class BlockConv(torch.nn.Module):
         def __init__(self, n_input, n_output, kernel_size=3, stride=1, residual: bool = True):
             super().__init__()
@@ -170,34 +159,3 @@ class Planner(torch.nn.Module):
 
         return spatial_argmax(x[:, 0, :h, :w])
 
-
-class FocalLoss(torch.nn.Module):
-    def __init__(self, gamma: float = 2, reduce: bool = True):
-        super().__init__()
-        self.gamma = gamma
-        self.reduce = reduce
-
-    def forward(self, input, target):
-        loss = F.binary_cross_entropy_with_logits(input, target, reduction='none')
-        p = torch.exp(-loss)
-        f_loss = ((1 - p) ** self.gamma) * loss
-        if self.reduce:
-            return f_loss.mean()
-        else:
-            return f_loss
-
-
-def save_model(model, name='planner.th'):
-    from torch import save
-    from os import path
-    if isinstance(model, Planner):
-        return save(model.state_dict(), path.join(path.dirname(path.abspath(__file__)), name))
-    raise ValueError("model type '%s' not supported!" % str(type(model)))
-
-
-def load_model():
-    from torch import load
-    from os import path
-    r = Planner()
-    r.load_state_dict(load(path.join(path.dirname(path.abspath(__file__)), 'planner.th'), map_location='cpu'))
-    return r

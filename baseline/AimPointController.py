@@ -1,6 +1,6 @@
 import numpy as np
 
-from agents.AbstractAgent import AbstractAgent
+from agents.abstractAgent import AbstractAgent
 from baseline.planner import load_model
 from environments.pytux import VELOCITY, IMAGE, PyTux
 
@@ -10,11 +10,38 @@ class AimPointController(AbstractAgent):
         super().__init__(*args, **kwargs)
         self.aim_planner = load_model().eval()
 
-    def act(self, state: PyTux.State):
+    def act(self, state: PyTux.State, noise=None):
+        '''The function takes in a state and a noise value, and returns an action. 
+        
+        The action is calculated given an aim point and a velocity. 
+        The aim point is predicted by a CNN from the image.
+        
+        Parameters
+        ----------
+        state : PyTux.State
+            PyTux.State
+        noise
+            a tuple of two values, the first value is the noise added to the aim point, the second value is the noise added to the velocity.
+        
+        Returns
+        -------
+            The action obtained given the aim point and velocity
+        
+        '''
         super().act(state)
+
+        if noise is None:
+            # first value for aim point, second value for velocity
+            noise = (0,0)
+
         img = self._to_torch(state[IMAGE])
-        vel = np.linalg.norm(state[VELOCITY])
+        # calculate velocity and add noise
+        vel = np.linalg.norm(state[VELOCITY]) + np.random.randn() * noise[1]
+        # calculate aim point
         aim_point = self._pred_aim_poing(img)
+        # add noise to aim point
+        aim_point += np.random.randn(*aim_point.shape) * noise[0]
+        # return action obtained given the aim point and velocity
         return self._control(aim_point, vel)
 
     def _pred_aim_poing(self, img):
