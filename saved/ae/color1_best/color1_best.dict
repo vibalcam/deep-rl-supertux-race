@@ -1,0 +1,29 @@
+{
+dim_layers:[16, 32, 64, 128],
+n_input:3,
+input_normalization:True,
+residual:True,
+input_dim:(96, 128),
+hidden_dim:128,
+kwargs:{
+},
+__class__:<class '__main__.KartCNN'>,
+tr_par_seed:1234,
+tr_par_lr:0.001,
+tr_par_optimizer_name:adamw,
+tr_par_n_epochs:400,
+tr_par_batch_size:32,
+tr_par_num_workers:0,
+tr_par_scheduler_mode:min_val_loss,
+tr_par_steps_save:inf,
+tr_par_scheduler_patience:10,
+tr_par_train_transform:Compose(
+    RandomHorizontalFlip(p=0.5)
+),
+tr_par_test_transform:None,
+val_loss:0.002307094866409898,
+epoch:399,
+last_epoch_sec:47.39754104614258,
+train_loss:0.0022723572328686714,
+model_class:cnn,
+}
