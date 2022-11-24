@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 def spatial_argmax(logit):
     """
-    Compute the soft-argmax of a heatmap
+    Computes the soft-argmax of a heatmap
     :param logit: A tensor of size BS x H x W
     :return: A tensor of size BS x 2 the soft-argmax in normalized coordinates (-1 .. 1)
     """
@@ -127,9 +127,7 @@ class Planner(torch.nn.Module):
 
     def forward(self, x):
         """
-        Your code here
-        Predict the aim point in image coordinate, given the supertuxkart image
-        @img: (B,3,96,128)
+        Predicts the aim point in image coordinate, given the supertuxkart image
         return (B,2)
         """
         # Input Normalization

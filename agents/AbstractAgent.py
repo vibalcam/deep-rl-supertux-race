@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 
 import torchvision.transforms.functional as TF
 import torch
@@ -12,7 +12,6 @@ import numpy as np
 
 class AbstractAgent:
     default_options = dotdict(
-        max_episode_length=2000,
     )
 
     def __init__(self, env, options: Dict = None):
@@ -83,14 +82,15 @@ class AbstractAgent:
         self.eval_mode(True)
 
         obs, _ = self.reset()
-        for _ in range(self.options.max_episode_length):
+        while(True):
             action = self.act(obs)
             obs, reward, done, _, _ = self.step(action)
             self.env.render()
 
             if done:
                 break
-
+        
+        return self.cur_stats
 
     def save_run(self, path:str, n_runs=1, noise=None, save_every_steps:int = 10):
         '''It runs the agent for a number of episodes, and saves the data at regular intervals
@@ -111,19 +111,20 @@ class AbstractAgent:
             print(f"Run {run} on {self}")
             # constant value summed to the timestep 
             # to randomize when image taken for each run
-            save_rand = np.random.rand() * save_every_steps
+            save_rand = int(np.random.rand() * save_every_steps)
 
             # path where the run will be saved
             p = f"{path}/{run}"
             pathlib.Path(p).mkdir(parents=True, exist_ok=True)
 
             obs, _ = self.reset()
-            for t in range(self.options.max_episode_length):
+            t=0
+            while(True):
                 action = self.act(obs, noise=noise)
                 next_obs, reward, done, _, _ = self.step(action)
 
                 # save data
-                if (t+save_rand) % save_every_steps == 0:
+                if (t+1) % save_every_steps == save_rand:
                     utils.save_dict(dict(
                         state=obs,
                         action=action,
@@ -132,11 +133,15 @@ class AbstractAgent:
                     ), path=f"{p}/{t}.pt")
 
                 obs = next_obs
+                t+=1
                 if done:
                     break
 
             # save final reward and results
-            utils.save_dict(self.cur_stats, path=f"{p}/final.pt")
+            self.cur_stats.done = done
+            # utils.save_dict(self.cur_stats, path=f"{p}/final.pt")
+            utils.save_dict(self.cur_stats, path=f"{p}/final.txt", as_str=True)
+
 
     # ABSTRACT METHODS
 
@@ -160,5 +165,5 @@ class AbstractAgent:
     def train(self):
         pass
     
-    def eval_mode(eval:bool = True):
+    def eval_mode(self,eval:bool = True):
         pass

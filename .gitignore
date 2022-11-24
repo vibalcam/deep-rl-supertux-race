@@ -2,7 +2,13 @@ pdf/
 tmp/
 .idea/
 .vscode/
-data/
+data*/
+*.exe
+logs/
+
+# Models too big, have to zip them
+**/*.th
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

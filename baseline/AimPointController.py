@@ -1,4 +1,5 @@
 import numpy as np
+from typing import Dict
 
 from agents.abstractAgent import AbstractAgent
 from baseline.planner import load_model
@@ -6,9 +7,11 @@ from environments.pytux import VELOCITY, IMAGE, PyTux
 
 
 class AimPointController(AbstractAgent):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, env, options: Dict = None, disable_drift:bool = False, fix_vel:float = None):
+        super().__init__(env, options)
         self.aim_planner = load_model().eval()
+        self.disable_drift = disable_drift
+        self.fix_vel = fix_vel
 
     def act(self, state: PyTux.State, noise=None):
         '''The function takes in a state and a noise value, and returns an action. 
@@ -49,13 +52,14 @@ class AimPointController(AbstractAgent):
 
     def _control(self, aim_point, current_vel) -> PyTux.Action:
         action = PyTux.Action()
-        # *Controller
+        # Controller
         # - cornfield_crossing[64.6 s]
         # - hacienda[53.1 s]
         # - lighthouse[43.3 s]
         # - scotland[56.5 s]
         # - snowtuxpeak[45.9 s]
         # - zengarden[42.4 s]
+
         abs_x = np.abs(aim_point[0])
         action.acceleration = (1 if current_vel < 35 and abs_x < 0.4 else 0) if current_vel > 8 else 1
         action.steer = np.tanh(current_vel * aim_point[0])
@@ -63,5 +67,11 @@ class AimPointController(AbstractAgent):
         action.drift = abs_x > 0.2 or (abs_x > 0.15 and current_vel > 15)
         action.brake = current_vel > 20 and abs_x > 0.4
         action.nitro = abs_x < 0.5
+
+        # Modify behavior for comparison
+        if self.disable_drift:
+            action.drift = False
+        if self.fix_vel is not None:
+            action.acceleration = self.fix_vel
 
         return action

@@ -4,6 +4,12 @@ import gym
 import matplotlib.pyplot as plt
 import numpy as np
 import pystk
+import cv2
+from PIL import Image
+import matplotlib
+import ffmpeg
+import pathlib
+import shutil
 
 from utils import dotdict
 
@@ -20,14 +26,21 @@ class PyTux(gym.Env):
     _singleton = None
     _t_reward = -1
     _rescue_timer = 30
+    _pause_render = 1e-3
     default_params = dotdict(
         track='lighthouse',
         ai=None,
         render_every=1,
+        no_pause_render=False,
         n_karts=1,
         n_laps=1,
         reverse=False,
         log_every=10,
+        seed=None,
+        save_video=None,
+        save_imgs=None,
+        # max_length=1500,
+        max_length=1000,
     )
 
     class State(dotdict):
@@ -53,7 +66,7 @@ class PyTux(gym.Env):
             a.steer = self[STEER]
             return a
 
-    def __init__(self, screen_width:int =128, screen_height:int =96, options:Dict = None):
+    def __init__(self, screen_width:int = 128, screen_height:int = 96, options:Dict = None):
         self.param = self.default_params.copy()
         if options is not None:
             self.param.update(options)
@@ -82,8 +95,13 @@ class PyTux(gym.Env):
         self.max_distance = 0
         # laps left
         self._laps_left = 0
+        # last reward
+        self.last_reward = None
+        # to render video
         self._ax = None
         self._fig = None
+        # to save video
+        self.writer = None
 
         """
         States space
@@ -145,6 +163,7 @@ class PyTux(gym.Env):
             track=self.param['track'],
             difficulty=self.param.ai if self.param.ai is not None else 0,
             reverse=self.param.reverse,
+            seed=self.param.seed if self.param.seed is not None else np.random.randint(low=0, high=2100000000),
         )
         if self.param['ai'] is None:
             config.players[0].controller = pystk.PlayerConfig.Controller.PLAYER_CONTROL
@@ -157,13 +176,22 @@ class PyTux(gym.Env):
         self.race.start()
 
         # reset variables
+        self._state = pystk.WorldState()
+        self._track = pystk.Track()
         self._last_rescue = np.zeros(self.param['n_karts'])
         self._laps_left = self.param['n_laps']
         self.t = 0
         self.n_rescued = 0
+        self.max_distance = 0
+        self.last_reward = None
         # set up to render image
-        if self.param['render_every'] > 0:
+        self._fig = None
+        self.writer = None
+        if self.param.render_every > 0:
             self._fig, self._ax = plt.subplots(1, 1)
+            if self.param.save_video is not None:
+                self.writer = pathlib.Path(f"tmp/{pathlib.Path(self.param.save_video).name.split('.')[0]}")
+                self.writer.mkdir(parents=True, exist_ok=True)
 
         # take a step to obtain initial observations
         self.race.step()
@@ -196,10 +224,10 @@ class PyTux(gym.Env):
             reward += (kart.overall_distance - self.max_distance)
             self.max_distance = kart.overall_distance
         # reward due to being near center of track
+        
         # todo finish reward function
 
         return reward
-
 
     def _get_info(self):
         kart = self._state.players[0].kart
@@ -211,19 +239,28 @@ class PyTux(gym.Env):
     def step(self,action) -> Tuple[State, float, bool, bool, dict]:
         self.t += 1
         obs = self._update_and_obs()
-        reward = self._calc_reward()
+        self.last_reward = self._calc_reward()
 
         # check whether the player 0 has finished the race
         terminated = False
         kart = self._state.players[0].kart
-        if np.isclose(kart.overall_distance / self._track.length, 1.0, atol=2e-3):
+        if self.t > self.param.max_length:
+            terminated = True
+        elif np.isclose(kart.overall_distance / self._track.length, 1.0, atol=2e-3):
             self._laps_left -= 1
             if self._laps_left == 0:
                 terminated = True
-                print(f"Track {self.param.track} finished in {self.t}")
 
         # if not terminated, take action
-        if not terminated:
+        if terminated:
+            # write video and close
+            if self.writer is not None:
+                pathlib.Path(self.param.save_video).parent.mkdir(parents=True, exist_ok=True)
+                ffmpeg.input(f"{self.writer}/%d.png", framerate=30).output(self.param.save_video).run()
+                shutil.rmtree(self.writer)
+                self.writer = None
+            print(f"Track {self.param.track} finished in {self.t}")
+        else:
             if not isinstance(action, PyTux.Action):
                 a = PyTux.Action()
                 a.update(action)
@@ -242,16 +279,28 @@ class PyTux(gym.Env):
             if self.t % self.param.log_every == 0:
                 print(f"Track {self.param.track} step {self.t}")
 
-            if self.param['render_every'] > 0 and self.t % self.param['render_every'] == 0:
-                self.render(reward)
+            if self._fig is not None and self.t % self.param['render_every'] == 0:
+                self.render()
 
-        return obs, reward, terminated, False, self._get_info()
+        return obs, self.last_reward, terminated, False, self._get_info()
 
-    def render(self, reward):
+    def render(self):
+        # render image
         self._ax.clear()
         self._ax.imshow(self.race.render_data[0].image)
-        plt.title(f"Last reward: {reward}")
-        plt.pause(1e-3)
+        if self.last_reward is not None:
+            plt.title(f"Last reward: {self.last_reward:0.4f}, Timestep: {self.t}")
+
+        # save img
+        if self.param.save_imgs is not None:
+            plt.savefig(f"{self.param.save_imgs}/{self.t}.png")
+
+        # save to video
+        if self.writer is not None:
+            plt.savefig(f"{self.writer}/{self.t}.png")
+
+        if not self.param.no_pause_render:
+            plt.pause(self._pause_render)
 
     def close(self):
         if self.race is not None:
