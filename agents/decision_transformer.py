@@ -167,10 +167,10 @@ class TransformerController(AbstractAgent):
         self.model = self.model.to(self.device)
         self.to_tensor = ToTensor()
         self.target_reward = target_reward
-        self.fixed_velocity = fixed_velocity
 
         # expand functionality
         self.allow_drift = allow_drift
+        self.fixed_velocity = fixed_velocity
 
     def reset(self, options: Dict = None):
         ret = super().reset(options)
@@ -307,8 +307,16 @@ class TransformerController(AbstractAgent):
         model = model.to(device)
 
         # Loss
-        loss = torch.nn.MSELoss().to(device)
-        loss_drift = torch.nn.BCEWithLogitsLoss().to(device) if self.allow_drift else None
+            # loss = torch.nn.MSELoss().to(device)
+            # loss_drift = torch.nn.BCEWithLogitsLoss().to(device) if self.allow_drift else None
+        var_list = ["steer", "acc", "drift", "brake"]
+        var_mask = torch.as_tensor([True, self.fixed_velocity is None, self.allow_drift, False]).int().to(device)
+        loss_list = [
+            torch.nn.MSELoss().to(device),
+            torch.nn.MSELoss().to(device),
+            torch.nn.BCEWithLogitsLoss().to(device),
+            lambda x,y: torch.as_tensor(0).to(device),
+        ]
 
         # load data
         dataset = LazySuperTuxDataset(path=dataset_path)
@@ -357,9 +365,9 @@ class TransformerController(AbstractAgent):
             # for epoch in (p_bar := trange(n_epochs, leave = True)):
             # p_bar.set_description(f"{name_model} -> best in {dict_model['epoch']}: {dict_model['val_acc']}")
 
-            # train_loss = []
-            train_mse_metric = torchmetrics.MeanSquaredError(compute_on_cpu=True).to(device)
-            train_drift_metric = torchmetrics.MeanMetric(compute_on_cpu=True).to(device)
+            train_metric = []
+            # train_mse_metric = torchmetrics.MeanSquaredError(compute_on_cpu=True).to(device)
+            # train_drift_metric = torchmetrics.MeanMetric(compute_on_cpu=True).to(device)
 
             # Start training: train mode
             model.train()
@@ -379,26 +387,29 @@ class TransformerController(AbstractAgent):
                     reward_to_go=rew_to_go[...,None],
                 )
                 # calculate loss over steering only
-                loss_train = loss(pred[0], act[:,:,0])
-                if self.allow_drift:
-                    loss_drift_v = loss_drift(pred[2], act[:,:,2])
-                    loss_train += loss_drift_v
+                loss_train = torch.stack([l(pred[k],act[:,:,k]) for k,l in enumerate(loss_list)]) * var_mask
+                loss = loss_train.sum()
+
+                # loss_train = loss(pred[0], act[:,:,0])
+                # if self.allow_drift:
+                #     loss_drift_v = loss_drift(pred[2], act[:,:,2])
+                #     loss_train += loss_drift_v
 
                 # Do back propagation
                 optimizer.zero_grad()
-                loss_train.backward()
+                loss.backward()
                 optimizer.step()
 
                 # Add train loss and accuracy
-                # train_loss.append(loss_train.cpu().detach().numpy())
-                train_mse_metric.update(pred[0], act[:,:,0])
-                if self.allow_drift:
-                    train_drift_metric.update(loss_drift_v)
+                train_metric.append(loss_train.cpu().detach())
+                # train_mse_metric.update(pred[0], act[:,:,0])
+                # if self.allow_drift:
+                #     train_drift_metric.update(loss_drift_v)
 
             # Evaluate the model
-            # val_loss = []
-            val_mse_metric = torchmetrics.MeanSquaredError(compute_on_cpu=True).to(device)
-            val_drift_metric = torchmetrics.MeanMetric(compute_on_cpu=True).to(device)
+            val_metric = []
+            # val_mse_metric = torchmetrics.MeanSquaredError(compute_on_cpu=True).to(device)
+            # val_drift_metric = torchmetrics.MeanMetric(compute_on_cpu=True).to(device)
             eval_results = None
 
             # Set evaluation mode
@@ -420,32 +431,36 @@ class TransformerController(AbstractAgent):
                     )
 
                     # Add loss and accuracy
+                    loss_val = torch.stack([l(pred[k],act[:,:,k]) for k,l in enumerate(loss_list)]) * var_mask
+                    val_metric.append(loss_val.cpu().detach())
+
                     # val_loss.append(loss(pred, y).cpu().detach().numpy())
-                    val_mse_metric.update(pred[0], act[:,:,0])
-                    if self.allow_drift:
-                        val_drift_metric.update(loss_drift(pred[2], act[:,:,2]))
+                    # val_mse_metric.update(pred[0], act[:,:,0])
+                    # if self.allow_drift:
+                    #     val_drift_metric.update(loss_drift(pred[2], act[:,:,2]))
                 
                 if epoch % steps_eval == steps_eval - 1:
-                    self.options.render_every = 0
+                    self.options.render_every = 1
                     self.options.save_video=f"{save_path}/{save_name}_videos/{epoch}.mp4"
                     eval_results = self.evaluate().cum_reward
                     eval_best.update(eval_results)
                     self.clear()
 
             # calculate mean metrics
-            # train_loss = np.mean(train_loss)
-            train_loss = train_mse_metric.compute()
-            train_mse_metric.reset()
-            if self.allow_drift:
-                train_loss_drift = train_drift_metric.compute()
-                train_drift_metric.reset()
-            # val_loss = np.mean(val_loss)
-            val_loss = val_mse_metric.compute()
-            val_mse_metric.reset()
-            if self.allow_drift:
-                val_loss_drift = val_drift_metric.compute()
-                val_drift_metric.reset()
-
+            train_part_loss = torch.stack(train_metric).mean(0).numpy()
+            train_loss = train_part_loss.sum().item()
+            # train_loss = train_mse_metric.compute()
+            # train_mse_metric.reset()
+            # if self.allow_drift:
+            #     train_loss_drift = train_drift_metric.compute()
+            #     train_drift_metric.reset()
+            val_part_loss = torch.stack(val_metric).mean(0).numpy()
+            val_loss = val_part_loss.sum().item()
+            # val_loss = val_mse_metric.compute()
+            # val_mse_metric.reset()
+            # if self.allow_drift:
+            #     val_loss_drift = val_drift_metric.compute()
+            #     val_drift_metric.reset()
             
             # calculate time/epoch
             toc = time.time()
@@ -494,15 +509,21 @@ class TransformerController(AbstractAgent):
                 # train log
                 suffix = 'train'
                 train_logger.add_scalar(f'loss_{suffix}', train_loss, global_step=global_step)
-                if self.allow_drift:
-                    train_logger.add_scalar(f'loss_drift_{suffix}', train_loss_drift, global_step=global_step)
+                # if self.allow_drift:
+                #     train_logger.add_scalar(f'loss_drift_{suffix}', train_loss_drift, global_step=global_step)
                 # log_confussion_matrix(train_logger, train_cm, global_step, suffix=suffix)
 
                 # validation log
                 suffix = 'val'
                 valid_logger.add_scalar(f'loss_{suffix}', val_loss, global_step=global_step)
-                if self.allow_drift:
-                    valid_logger.add_scalar(f'loss_drift_{suffix}', val_loss_drift, global_step=global_step)
+
+                # log part metrics
+                for k,v in enumerate(var_list):
+                    train_logger.add_scalar(f'loss_train_{v}', train_part_loss[k].item(), global_step=global_step)
+                    valid_logger.add_scalar(f'loss_val_{v}', val_part_loss[k].item(), global_step=global_step)
+
+                # if self.allow_drift:
+                #     valid_logger.add_scalar(f'loss_drift_{suffix}', val_loss_drift, global_step=global_step)
                 if eval_results is not None:
                     valid_logger.add_scalar(f'reward_{suffix}', eval_results, global_step=global_step)
                 # log_confussion_matrix(valid_logger, val_cm, global_step, suffix=suffix)
@@ -521,9 +542,12 @@ class TransformerController(AbstractAgent):
                 # metrics
                 d["train_loss"] = train_loss
                 d["val_loss"] = val_loss
-                if self.allow_drift:
-                    d["train_drift_loss"] = train_loss_drift
-                    d["val_drift_loss"] = val_loss_drift
+                for k,v in enumerate(var_list):
+                    d[f"train_loss_{v}"] = train_part_loss[k].item()
+                    d[f"val_loss_{v}"] = val_part_loss[k].item()
+                # if self.allow_drift:
+                #     d["train_drift_loss"] = train_loss_drift
+                #     d["val_drift_loss"] = val_loss_drift
                 d['eval_reward'] = eval_results
 
                 # name_path = str(list(name_dict.values()))[1:-1].replace(',', '_').replace("'", '').replace(' ', '')
@@ -567,7 +591,6 @@ MODEL_CLASS = {
 
 #     def act(self, state):
 #         AimPointController
-
 
 #         return super().act(state)
 
@@ -656,16 +679,17 @@ if __name__ == '__main__':
             options=options,
             target_reward=500,
             allow_drift=True,
+            fixed_velocity=None,
 
-            # model=AgentTransformerModel(cnn_model_path = 'saved/ae/color1_best'),
-            model=load_model('./saved/trans/colorNoDrift/decTransColor1_best', MODEL_CLASS)[0],
+            model=AgentTransformerModel(cnn_model_path = 'saved/ae/color1_best'),
+            # model=load_model('./saved/trans/colorDrift_tmp2/decTransColor_drift1_best', MODEL_CLASS)[0],
         )
 
         model.train(
             dataset_path='data',
 
-            save_name="decTransColor_drift1", 
-            save_path='./saved/trans/colorDrift',
+            save_name="decTransColor_drift_acc1", 
+            save_path='./saved/transMultiple/colorDriftAcc',
 
             # checkpoint_path='./saved/trans/decTrans1_best',
             use_cpu=False, 
@@ -675,8 +699,8 @@ if __name__ == '__main__':
             steps_save=20,
             batch_size=1,
             lr=1e-4,
-            # lr=6e-5,
-            n_epochs=300,
+            # n_epochs=300,
+            n_epochs=500,
             steps_eval=20,
         )
 

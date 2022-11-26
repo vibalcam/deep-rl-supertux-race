@@ -39,8 +39,8 @@ class PyTux(gym.Env):
         seed=None,
         save_video=None,
         save_imgs=None,
-        # max_length=1500,
-        max_length=1000,
+        max_length=1500,
+        # max_length=1000,
     )
 
     class State(dotdict):
@@ -223,9 +223,7 @@ class PyTux(gym.Env):
         if kart.overall_distance > self.max_distance:
             reward += (kart.overall_distance - self.max_distance)
             self.max_distance = kart.overall_distance
-        # reward due to being near center of track
-        
-        # todo finish reward function
+        # todo reward due to being near center of track
 
         return reward
 

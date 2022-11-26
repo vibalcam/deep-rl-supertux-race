@@ -85,7 +85,6 @@ class AbstractAgent:
         while(True):
             action = self.act(obs)
             obs, reward, done, _, _ = self.step(action)
-            self.env.render()
 
             if done:
                 break
