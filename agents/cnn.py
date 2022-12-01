@@ -13,9 +13,7 @@ from os import path
 import torchmetrics
 
 PREFIX_TRAINING_PARAMS = "tr_par_"
-# SCHEDULER_MODES = dict(
-#     min_loss=('train_loss', min),
-# )
+
 
 class KartCNN(torch.nn.Module):
     class BlockConv(torch.nn.Module):
@@ -447,21 +445,6 @@ class KartCNN(torch.nn.Module):
                         optimizer=optimizer,
                     )
                     print(f"{epoch}/{n_epochs} in {epoch_time:0.1f}s: loss {train_loss:0.5f}, val loss {val_loss:0.5f}")
-
-
-# def log_confussion_matrix(logger, confussion_matrix: ClassConfusionMatrix, global_step: int, suffix=''):
-#     """
-#     Logs the data in the confussion matrix to a logger
-#     :param logger: tensorboard logger to use for logging
-#     :param confussion_matrix: confussion matrix from where the metrics are obtained
-#     :param global_step: global step for the logger
-#     """
-#     logger.add_scalar(f'acc_global_{suffix}', confussion_matrix.global_accuracy, global_step=global_step)
-#     logger.add_scalar(f'acc_avg_{suffix}', confussion_matrix.average_accuracy, global_step=global_step)
-#     logger.add_scalar(f'mcc_{suffix}', confussion_matrix.matthews_corrcoef, global_step=global_step)
-#     logger.add_scalar(f'rmse_{suffix}', confussion_matrix.rmse, global_step=global_step)
-#     for idx, k in enumerate(confussion_matrix.class_accuracy):
-#         logger.add_scalar(f'acc_class_{idx}_{suffix}', k, global_step=global_step)
 
 
 MODEL_CLASS = dict(

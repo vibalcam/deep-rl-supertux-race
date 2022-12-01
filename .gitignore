@@ -4,11 +4,10 @@ tmp/
 .vscode/
 data*/
 *.exe
-logs/
 
-# Models too big, have to zip them
-**/*.th
-
+saved
+logs
+evaluate
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

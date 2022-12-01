@@ -1,53 +1,112 @@
 # Deep Reinforcement Learning SuperTux Race Kart
 
-Deep Reinforcement Learning AI to play the SuperTuxKart race game.
+Deep Reinforcement Learning AI to play the SuperTuxKart race game using gym environment.
 
-## General
+![Summary chart](evaluate/lighthouse_chart.png)
 
-- Train in multiple scenarios
 
-## Process only using lighthouse
+- [Results](#results)
+- [Training Process](#training-process)
+- [Get Data](#get-data)
+- [CNN Autoencoder](#cnn-autoencoder)
+- [Full Model](#full-model)
+- [Steer Model](#steer-model)
+- [Drift Model](#drift-model)
+- [Evaluate Models](#evaluate-models)
+- [Environment](#environment)
 
-- Pretrain CNN autoencoder, grayscale and RGB color
-- Get data no drift running aim controller baseline (150 runs)
-  - Noise (0,0.5,1 multipliers of 0.1 10)
-    - 30 no noise
-    - 60 noise (0.05, 2.5)
-    - 60 noise (0.1, 5)
-- Multiple trained models, overfit training by a lot --> 
-  - try to generate more data by including noise to the aim controller
-  - try warm start learning rate
-- Solved calculating rewards to go (1)
-- Train with aim controller without drift --> 
-  - rewards of 132, 746 steps on lighthouse (fixed vel 0.5 no drift)
-  - rewards of 200, 679 steps on lighthouse (fixed vel 1 no drift)
-  - *successfully learns to drive but cannot take quick turns*
-- Get data with/without drift running aim controller baseline
-  - Drift enabled/disabled
-  - Noise (0,0.5,1 multipliers of 0.1 10)
-    - 15 no noise
-    - 30 noise (0.05, 2.5)
-    - 30 noise (0.1, 5)
-- From best no drift model, enable drift and train over with/without drift data --> 
-  - rewards of 203, 675 steps on lighthouse (fixed vel 0.5)
-  - rewards 289, 590 steps on lighthouse (fixed vel 1)
-  - beats baseline which obtains 273, 605 steps on lighthouse
-  - beats ia 0 which obtains 243, 636 steps on lighthouse
-  - *successfully learns to drive and drift so it can take quick turns, but does not control acceleration*
-  - *beats the baseline from which it has learned*
-- Train model from scratch using CNN encoder for drift, steer and acceleration
-  - mean rewards of 280, 598 steps on lighthouse
+## Results
 
-## Problems
+The results obtained by the different models can be found in evaluate.xlsx.
+Some sample videos and a chart summarizing the results can be found in the evaluate folder.
 
-1. Not calculating reward to go correctly, it should be final - cum
+## Training Process
 
-## Ideas
+The following steps have to be done to train a model:
 
-- Train with adafactor optimizator
-- augment with combined agent
+- Choose the tracks ([Environment](#environment))
+- Gather data ([Get Data](#get-data))
+- Train CNN autoencoder ([CNN Autoencoder](#cnn-autoencoder))
+- Train model
 
+Once the model has been trained and saved, we can evaluate the models by specifying the models to be evaluated in run.py.
+
+## Get Data
+
+It runs the baseline model (with and without noise) on the environment to obtain a dataset of episodes that are used for training our models.
+
+To change the way data is gathered or more information check run.py.
+
+```
+python -m run -t
+```
+
+## CNN Autoencoder
+
+The CNN autoencoder that is later used by the controller models can be found in agents/cnn.py.
+
+To train the CNN autoencoder on the available data:
+
+```
+python -m agents.cnn
+```
+
+## Full Model
+
+Learns to steer, drift, and accelerate.
+
+It can be trained from scratch. However, we have first pretrained a CNN autoencoder and used the encoder for the image embedding layer.
+To modify this behavior or more information check agents/decision_transformer.py.
+
+The following command trains this model with the autoencoder and data already available:
+```
+python -m agents.decision_transformer 
+```
+
+## Steer Model
+
+Learns to steer and has fixed acceleration and drift disabled.
+
+It can be trained from scratch. However, we have first pretrained a CNN autoencoder and used the encoder for the image embedding layer.
+To modify this behavior or more information check agents/decision_transformer.py.
+
+The following command trains this model with the autoencoder and data already available:
+```
+python -m agents.decision_transformer --no_drift 
+```
+
+## Drift Model
+
+Learns to drift and steer, and has fixed acceleration. 
+
+It can be trained from scratch. However, we have used the steer model with the best validation loss as our starting model for training.
+To modify this behavior or more information check agents/decision_transformer.py.
+
+The following command trains this model with the steer model and data already available:
+```
+python -m agents.decision_transformer --fixed_velocity 
+```
+
+## Evaluate Models
+
+It runs the set of given models, the baseline, and the game AI for a certain number of episodes to evaluate their performance.
+
+The models being evaluated are preset and need to be unziped before being used (the models are available in the saved folder).
+To change the models being evaluated or more information check run.py.
+
+To evaluate the models on the lighthouse track:
+```
+python -m run --evaluate_lighthouse
+```
+
+To evaluate the models on all selected tracks (models given have not been trained in other tracks than lighthouse):
+
+```
+python -m run --evaluate
+```
 
 ## Environment
 
-[PySuperTuxKart](https://github.com/philkr/pystk)
+Gym environment that wraps the [PySuperTuxKart](https://github.com/philkr/pystk) game environment.
+
+To check the environment options or select which tracks to use check environments/pytux.py.

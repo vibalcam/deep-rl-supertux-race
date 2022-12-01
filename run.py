@@ -6,23 +6,12 @@ from agents.decision_transformer import MODEL_CLASS, TransformerController, Agen
 from agents.cnn import KartCNN
 from agents.abstractAgent import AbstractAgent
 
-from environments.pytux import PyTux
+from environments.pytux import PyTux, tracks,tracks_max_length
 import numpy as np
 import pandas as pd
 from collections import defaultdict
+import matplotlib.pyplot as plt
 
-# Tracks
-tracks = [
-    "lighthouse",
-    # "hacienda",
-    # "snowtuxpeak",
-    # "cornfield_crossing",
-    # "zengarden",
-    # "scotland",
-]
-# Tracks max lenght
-tracks_max_length = defaultdict(lambda: 1500)
-tracks_max_length["lighthouse"] = 850
 
 # Default running options
 options = PyTux.default_params.copy()
@@ -33,10 +22,7 @@ options.update(dict(
     n_karts=1,
     n_laps=1,
     no_pause_render=True,
-    # save_video='video.mp4',
-    # save_imgs='tmp/imgs',
 ))
-env = gym.make('PyTux-v0', screen_width = 128, screen_height = 96, options=options)
 
 
 def evaluate_lighthouse(n_runs: int=20, save_videos: bool = True):
@@ -59,8 +45,10 @@ def evaluate_lighthouse(n_runs: int=20, save_videos: bool = True):
             options_current.max_length = tracks_max_length[tr]
 
             # Game AI
-            for k in range(3):
-                name = f"ai_{k}"
+            # AI 1 and 2 use objects
+            # for k in range(3):
+            for k in range(1):
+                name = f"AI_{k}"
                 # set options
                 options_current.save_video=f"evaluate/{tr}_{name}.mp4"
                 options_current.seed=base_seed + r
@@ -74,7 +62,7 @@ def evaluate_lighthouse(n_runs: int=20, save_videos: bool = True):
             options_current.ai = None
 
             # Aim point controller no drift
-            name = f"baseline_noDrift"
+            name = f"NoDriftBaseline"
             # set options
             options_current.save_video=f"evaluate/{tr}_{name}.mp4"
             options_current.seed=base_seed + r
@@ -84,7 +72,7 @@ def evaluate_lighthouse(n_runs: int=20, save_videos: bool = True):
             track_stats[name].append(res)
 
             # Aim point controller
-            name = f"baseline"
+            name = f"Baseline"
             # set options
             options_current.save_video=f"evaluate/{tr}_{name}.mp4"
             options_current.seed=base_seed + r
@@ -99,7 +87,7 @@ def evaluate_lighthouse(n_runs: int=20, save_videos: bool = True):
                 'decTransColor1_best',
             ]
             for k in l:
-                name = f"trans_no_drift_{k}"
+                name = f"NoDriftModel_{k}"
                 # set options
                 options_current.save_video=f"evaluate/{tr}_{name}.mp4"
                 options_current.seed=base_seed + r
@@ -126,7 +114,7 @@ def evaluate_lighthouse(n_runs: int=20, save_videos: bool = True):
                 'colorDrift/decTransColor_drift1_139',
             ]
             for k,p in enumerate(l):
-                name = f"trans_drift_{k}"
+                name = f"DriftModel_{k}"
                 # set options
                 options_current.save_video=f"evaluate/{tr}_{name}.mp4"
                 options_current.seed=base_seed + r
@@ -149,7 +137,7 @@ def evaluate_lighthouse(n_runs: int=20, save_videos: bool = True):
                 'colorDriftAcc2/decTransColor_drift_acc1_359',
             ]
             for k,p in enumerate(l):
-                name = f"trans_drift_acc_{k}"
+                name = f"FullModel_{k}"
                 # set options
                 options_current.save_video=f"evaluate/{tr}_{name}.mp4"
                 options_current.seed=base_seed + r
@@ -179,10 +167,27 @@ def evaluate_lighthouse(n_runs: int=20, save_videos: bool = True):
             temp_stats[k1] = mean_d
         
         # associate stats with track
-        stats[tr] = pd.DataFrame.from_dict(temp_stats, orient='index')
+        stats[tr] = pd.DataFrame.from_dict(temp_stats, orient='index').sort_values(by='steps_median')
+
+        # get chart results
+        t = stats[tr]
+        t[['steps_median']].plot(
+            kind='bar',
+            yerr=[t['steps_median'] - t['steps_min'], t['steps_median'] - t['steps_max']],
+            capsize=6, 
+            ylim=[t['steps_min'].min()*0.95,t['steps_max'].max()*1.05]
+        )
+        plt.xlabel("Controller")
+        plt.xticks(rotation=45, ha='right')
+        plt.ylabel("Steps")
+        plt.title(f"Median steps on {tr} for {n_runs} runs")
+        plt.grid()
+        plt.savefig(f"{tr}_chart.png", bbox_inches='tight')
 
     # concatenate dataframes from different tracks
     res = pd.concat(stats.values(), axis=1, keys=stats.keys())
+    
+    # output to excel
     res.round(2).to_excel('evaluate.xlsx')
     return res
 
@@ -324,40 +329,47 @@ def get_trajectories(path:str="data", max_noise=(0.1,5)):
                     )
 
 
-import argparse
-parser = argparse.ArgumentParser()
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser()
 
-parser.add_argument('--path', '-p', default="./dataNoDrift/1")
-parser.add_argument('--trajectories', '-t', action='store_true', help="Save trajectories")
-parser.add_argument('--evaluate_lighthouse', '-el', action='store_true', help="Evaluate controllers in lighthouse track")
+    parser.add_argument('--path', '-p', default="./data/1")
+    parser.add_argument('--trajectories', '-t', action='store_true', help="Save trajectories")
+    parser.add_argument('--evaluate_lighthouse', '-el', action='store_true', help="Evaluate controllers on lighthouse track")
+    parser.add_argument('--evaluate', '-e', action='store_true', help="Evaluate controllers on selected tracks")
 
-args = parser.parse_args()
+    args = parser.parse_args()
 
-if args.trajectories:
-    """
-    Data no drift running aim controller baseline (150 runs)
-    - Drift disabled
-        - True
-    - Noise (0,0.5,1 multipliers of 0.1 10)
-        - 30 no noise
-        - 60 noise (0.05, 2.5)
-        - 60 noise (0.1, 5)
-    """
-    """
-    Data running aim controller baseline (150 runs)
-    - Drift enabled/disabled
-        - True
-        - False
-    - Noise (0,0.5,1 multipliers of 0.1 10)
-        - 15 no noise
-        - 30 noise (0.05, 2.5)
-        - 30 noise (0.1, 5)
-    """
-    get_trajectories(args.path)
-elif args.evaluate_lighthouse:
-    evaluate_lighthouse()
-else:
-    # get_trajectories(args.path)
-    evaluate_lighthouse()
+    # Create env
+    env = gym.make('PyTux-v0', screen_width = 128, screen_height = 96, options=options)
 
-env.close()
+    if args.trajectories:
+        """
+        Data no drift running aim controller baseline (150 runs)
+        - Drift disabled
+            - True
+        - Noise (0,0.5,1 multipliers of 0.1 10)
+            - 30 no noise
+            - 60 noise (0.05, 2.5)
+            - 60 noise (0.1, 5)
+        """
+        """
+        Data running aim controller baseline (150 runs)
+        - Drift enabled/disabled
+            - True
+            - False
+        - Noise (0,0.5,1 multipliers of 0.1 10)
+            - 15 no noise
+            - 30 noise (0.05, 2.5)
+            - 30 noise (0.1, 5)
+        """
+        get_trajectories(args.path)
+    elif args.evaluate_lighthouse:
+        evaluate_lighthouse()
+    elif args.evaluate:
+        evaluate_tracks()
+    else:
+        evaluate_lighthouse()
+        # evaluate_tracks()
+
+    env.close()

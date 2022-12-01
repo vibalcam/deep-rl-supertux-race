@@ -1,18 +1,14 @@
-import copy
 import pickle
 import random
 from pathlib import Path
 from typing import List, Dict, Tuple, Union, Optional
 import os
-
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import pathlib
 from collections import defaultdict
-
 from torchvision import transforms
-
 from torch.utils.data import Dataset, random_split, DataLoader
 
 
@@ -52,10 +48,6 @@ class LazySuperTuxDataset(Dataset):
                 reward-to-go 
         """
         path_idx = self.episodes[idx]
-
-        # # get path of file with final reward
-        # final_p = path_idx.joinpath('final.txt')
-        # cum_reward = load_dict(final_p)['cum_reward']
 
         imgs = []
         vel = []
@@ -111,15 +103,12 @@ class SuperTuxDataset(Dataset):
     ):
         super().__init__()
 
-        # dictionary of final results
-        # final = {}
         # list of states, action, reward-to-go
         imgs = defaultdict(lambda: [])
         vel = defaultdict(lambda: [])
         rot = defaultdict(lambda: [])
         actions = defaultdict(lambda: [])
         rewards = defaultdict(lambda: [])
-        # rewards_to_go = defaultdict(lambda: [])
         timesteps = defaultdict(lambda: [])
 
         # transformation for images
@@ -137,13 +126,6 @@ class SuperTuxDataset(Dataset):
             if not (p.name.split('.')[0]).isnumeric():
                 continue
 
-            # # get path of file with final reward
-            # final_p = p.parent.joinpath('final.txt')
-            # cum_reward = final.get(final_p, None)
-            # if cum_reward is None:
-            #     cum_reward = load_dict(final_p)['cum_reward']
-            #     final[final_p] = cum_reward
-
             # load dictionary
             d = load_dict(p)
 
@@ -159,8 +141,6 @@ class SuperTuxDataset(Dataset):
             # save rewards
             r = d['reward']
             rewards[p.parent].append(r)
-            # # save rewards-to-go
-            # rewards_to_go[p.parent].append(cum_reward - r)
             # save timestep
             timesteps[p.parent].append(int(p.name.split('.')[0]))
 
@@ -170,11 +150,9 @@ class SuperTuxDataset(Dataset):
             t = torch.as_tensor(timesteps[k], dtype=torch.float32)
             a = torch.as_tensor(actions[k], dtype=torch.float32)
             r = torch.as_tensor(rewards[k], dtype=torch.float32)
-            # rg = torch.as_tensor(rewards_to_go[k], dtype=torch.float32)
             img = torch.cat(imgs[k])
             v = torch.as_tensor(vel[k], dtype=torch.float32)
             ro = torch.as_tensor(rot[k], dtype=torch.float32)
-            # calculate rewards to go
             # calculate rewards to go
             r_cum = r.cumsum(0)
             rg = r - r_cum + r_cum[-1]
@@ -283,25 +261,6 @@ def load_data(
         shuffle=False,
         drop_last=True,
     ) for k in subsets[1:])
-    # return (DataLoader(
-    #     train, 
-    #     num_workers=num_workers,
-    #     batch_size=batch_size,
-    #     shuffle=True,
-    #     drop_last=True,
-    # ),) + (DataLoader(
-    #     val, 
-    #     num_workers=num_workers,
-    #     batch_size=batch_size,
-    #     shuffle=False,
-    #     drop_last=True,
-    # ), DataLoader(
-    #     test, 
-    #     num_workers=num_workers,
-    #     batch_size=batch_size,
-    #     shuffle=False,
-    #     drop_last=False,
-    # ))
 
 
 # ----------------------------------------------------------------------------------
@@ -309,6 +268,7 @@ def load_data(
 # add class to save model metrics
 
 # ----------------------------------------------------------------------------------
+
 
 MODEL_CLASS_KEY = 'model_class'
 FOLDER_PATH_KEY = 'path_name'

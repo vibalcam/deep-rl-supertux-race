@@ -4,15 +4,29 @@ import gym
 import matplotlib.pyplot as plt
 import numpy as np
 import pystk
-import cv2
-from PIL import Image
-import matplotlib
 import ffmpeg
 import pathlib
 import shutil
+from collections import defaultdict
 
 from utils import dotdict
 
+
+# Tracks
+tracks = [
+    "lighthouse",
+    # "snowtuxpeak",
+    # "cornfield_crossing",
+
+    # "hacienda",
+    # "zengarden",
+    # "scotland",
+]
+# Tracks max lenght
+tracks_max_length = defaultdict(lambda: 1500)
+tracks_max_length["lighthouse"] = 850
+
+# Constants for state and action
 VELOCITY = 'vel'
 IMAGE = 'img'
 ROTATION = "rot"
@@ -40,7 +54,6 @@ class PyTux(gym.Env):
         save_video=None,
         save_imgs=None,
         max_length=1500,
-        # max_length=1000,
     )
 
     class State(dotdict):
@@ -106,9 +119,9 @@ class PyTux(gym.Env):
         """
         States space
         ------------
-            img: image of the game
-            vel: current kart´s velocity
-            rot: current kart´s rotation
+            img: np.uint8 (height,width,3), image of the game
+            vel: np.float (3), current kart's velocity
+            rot: np.float (4), current kart's rotation
         """
         self.observation_space = gym.spaces.Dict(
             {
@@ -120,10 +133,10 @@ class PyTux(gym.Env):
         """
         Action space
         ------------
-            acceleration: acceleration value for the kart
-            brake: bool, true if todo g
-            drift: 
-            steer: 
+            acceleration: np.float, acceleration value for the kart (range [0,1])
+            brake: bool, true to brake
+            drift: bool, true to drift which allows faster turning
+            steer: np.float, indicates steering direction and quantity to turn the kart (range [-1,1])
         """
         self.action_space = gym.spaces.Dict(
             {
@@ -143,7 +156,6 @@ class PyTux(gym.Env):
         super().reset(seed=seed)
 
         # parameters for the new race
-        #param = self.param.copy()
         if options is not None:
             self.param.update(options)
 
@@ -305,4 +317,3 @@ class PyTux(gym.Env):
             self.race.stop()
             del self.race
         pystk.clean()
-
