@@ -4,6 +4,15 @@ Deep Reinforcement Learning AI to play the SuperTuxKart race game using gym envi
 
 ![Summary chart](evaluate/lighthouse_chart.png)
 
+Full model:
+
+https://user-images.githubusercontent.com/49537743/205192574-885f514d-028f-4eb1-aab8-f7e3fd0aec76.mp4
+
+Steer and drift model:
+
+https://user-images.githubusercontent.com/49537743/205192811-6f483de5-6df6-4b31-9896-7ad2be1db0fa.mp4
+
+
 
 - [Results](#results)
 - [Training Process](#training-process)
