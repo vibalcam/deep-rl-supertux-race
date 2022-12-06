@@ -1,8 +1,8 @@
-# Decision Transformer SuperTuxKart AI
+# TransformerKart: A Full SuperTuxKart AI Controller
 
 Deep Reinforcement Learning AI to play the SuperTuxKart race game using a Decision Transformer and gym environment.
 
-Full report available in (pdf)[dec-transformer-supertux.pdf].
+Full report available in [pdf](dec-transformer-supertux.pdf).
 
 ![Summary chart](evaluate/lighthouse_chart.png)
 
