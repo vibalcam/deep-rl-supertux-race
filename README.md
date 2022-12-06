@@ -1,18 +1,14 @@
 # TransformerKart: A Full SuperTuxKart AI Controller
 
-Deep Reinforcement Learning AI to play the SuperTuxKart race game using a Decision Transformer and gym environment.
+Deep Reinforcement Learning AI to play the SuperTuxKart race game using a Decision Transformer and gym environment
 
-Full report available in [pdf](dec-transformer-supertux.pdf).
+<!---
+Full report available at [pdf](report/deep_rl_supertux.pdf)
 
-![Summary chart](evaluate/lighthouse_chart.png)
+A 5-minute summary video can be found at [youtube]() or [video](report/summary_video.mp4)
 
-Full model (steer, drift, and acceleration):
 
-https://user-images.githubusercontent.com/49537743/205192574-885f514d-028f-4eb1-aab8-f7e3fd0aec76.mp4
-
-Steer and drift model:
-
-https://user-images.githubusercontent.com/49537743/205192811-6f483de5-6df6-4b31-9896-7ad2be1db0fa.mp4
+-->
 
 - [Results](#results)
 - [Training Process](#training-process)
@@ -28,6 +24,17 @@ https://user-images.githubusercontent.com/49537743/205192811-6f483de5-6df6-4b31-
 
 The results obtained by the different models can be found in evaluate.xlsx.
 Some sample videos and a chart summarizing the results can be found in the evaluate folder.
+
+![Summary chart](evaluate/lighthouse_chart.png)
+
+Full model (steer, drift, and acceleration):
+
+https://user-images.githubusercontent.com/49537743/205192574-885f514d-028f-4eb1-aab8-f7e3fd0aec76.mp4
+
+Steer and drift model:
+
+https://user-images.githubusercontent.com/49537743/205192811-6f483de5-6df6-4b31-9896-7ad2be1db0fa.mp4
+
 
 ## Training Process
 
