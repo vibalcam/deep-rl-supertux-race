@@ -2,13 +2,12 @@
 
 Deep Reinforcement Learning AI to play the SuperTuxKart race game using a Decision Transformer and gym environment
 
-<!---
-Full report available at [pdf](report/deep_rl_supertux.pdf)
+Full report [pdf](deep_rl_supertux_race_report.pdf)
 
-A 5-minute summary video can be found at [youtube]() or [video](report/summary_video.mp4)
+5-minute summary video (also available [youtube](https://youtu.be/cvs2ACO91fE)):
 
+https://user-images.githubusercontent.com/49537743/213085474-df911108-5b9e-432b-baf0-a37b1819ac0d.mp4
 
--->
 
 - [Results](#results)
 - [Training Process](#training-process)
